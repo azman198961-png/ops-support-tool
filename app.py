@@ -11,6 +11,7 @@ if "logged_in" not in st.session_state:
     st.session_state.role = None
     st.session_state.user_email = ""
     st.session_state.entries = []  # এখানে সব এন্ট্রি জমা থাকবে
+    st.session_state.form_version = 0 # ফর্ম রিসেট করার জন্য কি-ভার্সন
 
 # এজেন্ট এবং অ্যাডমিন লগইন ক্রেডেনশিয়াল
 AGENTS = {
@@ -53,6 +54,12 @@ def agent_dashboard():
     st.sidebar.title(f"Agent Panel ({st.session_state.user_email})")
     page = st.sidebar.radio("Navigate Pages", ["User", "Driver", "All Entries"])
     
+    # এজেন্টের সফল সাবমিশনের পর অ্যানিমেশন
+    if "agent_action_done" in st.session_state:
+        st.success("Entry successfully submitted to Admin dashboard!")
+        st.balloons()
+        del st.session_state["agent_action_done"]
+    
     # 1. User Page
     if page == "User":
         st.subheader("👤 User Module")
@@ -61,7 +68,7 @@ def agent_dashboard():
         form_data = {}
         
         if sub_page == "Suspension":
-            with st.form("user_suspension_form"):
+            with st.form(f"user_suspension_form_{st.session_state.form_version}"):
                 trip_id = st.text_input("Trip ID")
                 user_name = st.text_input("User Name")
                 user_number = st.text_input("User Number")
@@ -92,7 +99,7 @@ def agent_dashboard():
                     st.session_state["review_entry"] = form_data
 
         elif sub_page == "Unsuspension":
-            with st.form("user_unsuspension_form"):
+            with st.form(f"user_unsuspension_form_{st.session_state.form_version}"):
                 trip_id = st.text_input("Trip ID")
                 user_name = st.text_input("User Name")
                 user_number = st.text_input("User Number")
@@ -123,7 +130,7 @@ def agent_dashboard():
                     st.session_state["review_entry"] = form_data
                     
         elif sub_page == "Pay Later Due Adjustment":
-            with st.form("user_paylater_form"):
+            with st.form(f"user_paylater_form_{st.session_state.form_version}"):
                 trip_id = st.text_input("Trip ID")
                 user_name = st.text_input("User Name")
                 user_number = st.text_input("User Number")
@@ -154,7 +161,7 @@ def agent_dashboard():
                     st.session_state["review_entry"] = form_data
                     
         elif sub_page == "Promos":
-            with st.form("user_promo_form"):
+            with st.form(f"user_promo_form_{st.session_state.form_version}"):
                 trip_id = st.text_input("Trip ID")
                 user_name = st.text_input("User Name")
                 user_number = st.text_input("User Number")
@@ -192,7 +199,7 @@ def agent_dashboard():
         
         form_data = {}
         if sub_page == "Suspension":
-            with st.form("driver_suspension_form"):
+            with st.form(f"driver_suspension_form_{st.session_state.form_version}"):
                 trip_id = st.text_input("Trip ID")
                 driver_name = st.text_input("Driver Name")
                 driver_number = st.text_input("Driver Number")
@@ -223,7 +230,7 @@ def agent_dashboard():
                     st.session_state["review_entry"] = form_data
                     
         elif sub_page == "Unsuspension":
-            with st.form("driver_unsuspension_form"):
+            with st.form(f"driver_unsuspension_form_{st.session_state.form_version}"):
                 trip_id = st.text_input("Trip ID")
                 driver_name = st.text_input("Driver Name")
                 driver_number = st.text_input("Driver Number")
@@ -261,10 +268,8 @@ def agent_dashboard():
         if st.button("Confirm Submission"):
             st.session_state.entries.append(st.session_state["review_entry"])
             del st.session_state["review_entry"]
-            
-            # Submission Animation & Reset
-            st.success("Entry successfully submitted to Admin dashboard!")
-            st.balloons()
+            st.session_state.form_version += 1  # ফর্ম রিসেট করবে
+            st.session_state.agent_action_done = True
             st.rerun()
 
     # 3. All Entries Page (Agent View)
@@ -305,6 +310,16 @@ def admin_dashboard():
     if page == "Approvals":
         st.title("⚙️ Admin Execution Dashboard")
         
+        # অ্যাডমিন অ্যানিমেশন
+        if "admin_action_status" in st.session_state:
+            status = st.session_state.admin_action_status
+            if status == "Done":
+                st.success("🎉 Entry successfully approved (Done)!")
+                st.balloons()
+            elif status == "Rejected":
+                st.error("❌ Entry has been rejected!")
+            del st.session_state["admin_action_status"]
+            
         if not st.session_state.entries:
             st.info("No entries submitted yet.")
         else:
@@ -322,13 +337,8 @@ def admin_dashboard():
                 st.session_state.entries[selected_idx]["Note"] = note_text
                 st.session_state.entries[selected_idx]["Status"] = new_status
                 
-                # Added colorful animation feedback
-                if new_status == "Done":
-                    st.success("🎉 Entry successfully Approved (Done)!")
-                    st.balloons()
-                elif new_status == "Rejected":
-                    st.error("❌ Entry has been Rejected!")
-                
+                # স্টেট সেভ করা হলো যাতে অ্যানিমেশন দেখানো যায়
+                st.session_state.admin_action_status = new_status
                 st.success("Changes updated successfully.")
                 st.rerun()
                 
@@ -358,13 +368,16 @@ def admin_dashboard():
                 
                 filtered_df = df[mask]
                 
+                # নতুন লজিক: শুধুমাত্র Done স্ট্যাটাস সম্পন্ন এন্ট্রিগুলো নিয়ে ক্যালকুলেশন
+                done_df = filtered_df[filtered_df["Status"] == "Done"]
+                
                 st.write(f"### Report for: {customer_type}")
                 
                 # Metrics Calculation
-                total_suspension = len(filtered_df[filtered_df["Category"] == "Suspension"])
-                total_unsuspension = len(filtered_df[filtered_df["Category"] == "Unsuspension"])
-                penalty_amount = filtered_df[filtered_df["Category"].isin(["Suspension", "Pay Later Due Adjustment", "Promos"])]["Amount"].sum()
-                collected_amount = filtered_df[filtered_df["Category"].isin(["Unsuspension"])]["Amount"].sum() # Simplified
+                total_suspension = len(done_df[done_df["Category"] == "Suspension"])
+                total_unsuspension = len(done_df[done_df["Category"] == "Unsuspension"])
+                penalty_amount = done_df[done_df["Category"].isin(["Suspension", "Pay Later Due Adjustment", "Promos"])]["Amount"].sum()
+                collected_amount = done_df[done_df["Category"].isin(["Unsuspension"])]["Amount"].sum()
                 remaining_needed = penalty_amount - collected_amount
                 ratio = total_suspension / total_unsuspension if total_unsuspension > 0 else total_suspension
                 
