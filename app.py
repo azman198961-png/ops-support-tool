@@ -11,6 +11,8 @@ if "logged_in" not in st.session_state:
     st.session_state.role = None
     st.session_state.user_email = ""
     st.session_state.entries = []  # এখানে সব এন্ট্রি জমা থাকবে
+
+if "form_version" not in st.session_state:
     st.session_state.form_version = 0 # ফর্ম রিসেট করার জন্য কি-ভার্সন
 
 # এজেন্ট এবং অ্যাডমিন লগইন ক্রেডেনশিয়াল
@@ -384,10 +386,10 @@ def admin_dashboard():
                 col_a, col_b, col_c = st.columns(3)
                 col_a.metric("Suspension Count", total_suspension)
                 col_b.metric("Unsuspension Count", total_unsuspension)
-                col_c.metric("Total Penalty/Required Amount", f"৳{penalty_amount:,.2f}")
+                col_c.metric("Total Penalty/Required Amount", f"Tk {penalty_amount:,.2f}")
                 
                 col_d, col_e, col_f = st.columns(3)
-                col_d.metric("Amount Collected", f"৳{collected_amount:,.2f}")
+                col_d.metric("Amount Collected", f"Tk {collected_amount:,.2f}")
                 col_e.metric("Still Collection Needed", f"Tk {remaining_needed:,.2f}")
                 col_f.metric("Suspension vs Unsuspension Ratio", f"{ratio:.2f}")
 
