@@ -96,7 +96,7 @@ def agent_dashboard():
                         "Interaction ID": "",
                         "Tx ID": "",
                         "Status": "Pending",
-                        "Note": f"{trip_id}{suspension_sop}Requested by {st.session_state.user_email}"
+                        "Note": f"{trip_id} | {suspension_sop} | Requested by {st.session_state.user_email}"
                     }
                     st.session_state["review_entry"] = form_data
 
@@ -127,7 +127,7 @@ def agent_dashboard():
                         "Interaction ID": "",
                         "Tx ID": tx_id,
                         "Status": "Pending",
-                        "Note": f"{trip_id}{reason}{tx_id}Requested by {st.session_state.user_email}"
+                        "Note": f"{trip_id} | {reason} | {tx_id} | Requested by {st.session_state.user_email}"
                     }
                     st.session_state["review_entry"] = form_data
                     
@@ -264,15 +264,22 @@ def agent_dashboard():
 
     # Reviewing Section and Submission
     if "review_entry" in st.session_state and page != "All Entries":
-        st.markdown("### Review Entry Details")
+        st.markdown("---")
+        st.markdown("### 📋 Review Entry Details")
         st.json(st.session_state["review_entry"])
         
-        if st.button("Confirm Submission"):
-            st.session_state.entries.append(st.session_state["review_entry"])
-            del st.session_state["review_entry"]
-            st.session_state.form_version += 1  # ফর্ম রিসেট করবে
-            st.session_state.agent_action_done = True
-            st.rerun()
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Confirm Submission", use_container_width=True):
+                st.session_state.entries.append(st.session_state["review_entry"])
+                del st.session_state["review_entry"]
+                st.session_state.form_version += 1  # ফর্ম ফিল্ড ক্লিয়ার করার জন্য
+                st.session_state.agent_action_done = True
+                st.rerun()
+        with col2:
+            if st.button("Cancel", use_container_width=True):
+                del st.session_state["review_entry"]
+                st.rerun()
 
     # 3. All Entries Page (Agent View)
     elif page == "All Entries":
@@ -286,14 +293,14 @@ def agent_dashboard():
             with tab_u:
                 user_df = df[df["Type"] == "User"]
                 if not user_df.empty:
-                    st.dataframe(user_df[["Time", "Agent", "Category", "Trip ID", "Name", "ID", "Status"]])
+                    st.dataframe(user_df[["Time", "Agent", "Category", "Trip ID", "Name", "ID", "Status"]], use_container_width=True)
                 else:
                     st.info("No user entries yet.")
             
             with tab_d:
                 driver_df = df[df["Type"] == "Driver"]
                 if not driver_df.empty:
-                    st.dataframe(driver_df[["Time", "Agent", "Category", "Trip ID", "Name", "ID", "Status"]])
+                    st.dataframe(driver_df[["Time", "Agent", "Category", "Trip ID", "Name", "ID", "Status"]], use_container_width=True)
                 else:
                     st.info("No driver entries yet.")
         else:
@@ -312,7 +319,7 @@ def admin_dashboard():
     if page == "Approvals":
         st.title("⚙️ Admin Execution Dashboard")
         
-        # অ্যাডমিন অ্যানিমেশন
+        # অ্যাডমিন অ্যানিমেশন চেক (রিস্টার্টের পর মেসেজ দেখানোর জন্য)
         if "admin_action_status" in st.session_state:
             status = st.session_state.admin_action_status
             if status == "Done":
@@ -320,28 +327,32 @@ def admin_dashboard():
                 st.balloons()
             elif status == "Rejected":
                 st.error("❌ Entry has been rejected!")
+                st.snow() # রিজেকশনের জন্য স্নো অ্যানিমেশন
             del st.session_state["admin_action_status"]
             
         if not st.session_state.entries:
             st.info("No entries submitted yet.")
         else:
             df = pd.DataFrame(st.session_state.entries)
-            st.dataframe(df)
+            st.dataframe(df, use_container_width=True)
             
-            selected_idx = st.selectbox("Select index number to execute", df.index)
+            st.markdown("---")
+            st.subheader("Update Request")
+            selected_idx = st.selectbox("Select row index to execute", df.index)
             selected_entry = st.session_state.entries[selected_idx]
             
-            st.write("### Actions & Execution")
-            note_text = st.text_input("Note Section", value=selected_entry["Note"])
-            new_status = st.selectbox("Status", ["Pending", "Done", "Rejected"], index=["Pending", "Done", "Rejected"].index(selected_entry["Status"]))
+            col1, col2 = st.columns(2)
+            with col1:
+                note_text = st.text_input("Note Section", value=selected_entry["Note"])
+            with col2:
+                new_status = st.selectbox("Status", ["Pending", "Done", "Rejected"], index=["Pending", "Done", "Rejected"].index(selected_entry["Status"]))
             
-            if st.button("Save Changes"):
+            if st.button("Save Changes & Execute"):
                 st.session_state.entries[selected_idx]["Note"] = note_text
                 st.session_state.entries[selected_idx]["Status"] = new_status
                 
-                # স্টেট সেভ করা হলো যাতে অ্যানিমেশন দেখানো যায়
+                # অ্যানিমেশন ট্রিগার করার জন্য স্টেট সেভ
                 st.session_state.admin_action_status = new_status
-                st.success("Changes updated successfully.")
                 st.rerun()
                 
     elif page == "Analytics":
@@ -350,7 +361,7 @@ def admin_dashboard():
         if not st.session_state.entries:
             st.info("No data available for analytics.")
         else:
-            # Filter Data by Type and Date Range
+            # ফিল্টার
             col1, col2, col3 = st.columns(3)
             with col1:
                 start_date = st.date_input("Start Date", datetime.today())
@@ -361,50 +372,57 @@ def admin_dashboard():
                 
             df = pd.DataFrame(st.session_state.entries)
             if not df.empty:
-                # Basic conversion for operations
                 df['Time'] = pd.to_datetime(df['Time'])
-                # Filters
+                # ফিল্টার অ্যাপ্লাই
                 mask = (df['Time'].dt.date >= start_date) & (df['Time'].dt.date <= end_date)
                 if customer_type != "All":
                     mask = mask & (df['Type'] == customer_type)
                 
                 filtered_df = df[mask]
                 
-                # নতুন লজিক: শুধুমাত্র Done স্ট্যাটাস সম্পন্ন এন্ট্রিগুলো নিয়ে ক্যালকুলেশন
+                # শুধুমাত্র Done স্ট্যাটাস ওয়ালা এন্ট্রিগুলো দিয়ে ক্যালকুলেশন
                 done_df = filtered_df[filtered_df["Status"] == "Done"]
                 
-                st.write(f"### Report for: {customer_type}")
+                st.write(f"### Report for: {customer_type} (Status: Done only)")
                 
-                # Metrics Calculation
+                # ক্যালকুলেশন
                 total_suspension = len(done_df[done_df["Category"] == "Suspension"])
                 total_unsuspension = len(done_df[done_df["Category"] == "Unsuspension"])
+                
                 penalty_amount = done_df[done_df["Category"].isin(["Suspension", "Pay Later Due Adjustment", "Promos"])]["Amount"].sum()
                 collected_amount = done_df[done_df["Category"].isin(["Unsuspension"])]["Amount"].sum()
                 remaining_needed = penalty_amount - collected_amount
-                ratio = total_suspension / total_unsuspension if total_unsuspension > 0 else total_suspension
                 
-                col_a, col_b, col_c = st.columns(3)
-                col_a.metric("Suspension Count", total_suspension)
-                col_b.metric("Unsuspension Count", total_unsuspension)
-                col_c.metric("Total Penalty/Required Amount", f"Tk {penalty_amount:,.2f}")
+                # রেশিও ক্যালকুলেশন (শতাংশে)
+                ratio_pct = (total_suspension / total_unsuspension * 100) if total_unsuspension > 0 else (total_suspension * 100.0)
                 
-                col_d, col_e, col_f = st.columns(3)
-                col_d.metric("Amount Collected", f"Tk {collected_amount:,.2f}")
-                col_e.metric("Still Collection Needed", f"Tk {remaining_needed:,.2f}")
-                col_f.metric("Suspension vs Unsuspension Ratio", f"{ratio:.2f}")
+                # ডিসপ্লে মেট্রিক্স
+                m1, m2, m3 = st.columns(3)
+                m1.metric("Suspension Count", total_suspension)
+                m2.metric("Unsuspension Count", total_unsuspension)
+                m3.metric("Total Penalty/Required", f"Tk {penalty_amount:,.2f}")
+                
+                m4, m5, m6 = st.columns(3)
+                m4.metric("Amount Collected", f"Tk {collected_amount:,.2f}")
+                m5.metric("Still Collection Needed", f"Tk {remaining_needed:,.2f}")
+                m6.metric("Suspension vs Unsuspension Ratio", f"{ratio_pct:,.2f}%")
 
-                # Percentage calculation
+                st.markdown("---")
+                # প্রগ্রেস বার
                 if penalty_amount > 0:
                     collected_pct = (collected_amount / penalty_amount) * 100
                     remaining_pct = (remaining_needed / penalty_amount) * 100
-                    st.progress(collected_pct/100, text=f"Collected %: {collected_pct:.2f}%")
-                    st.progress(remaining_pct/100, text=f"Still To Collect %: {remaining_pct:.2f}%")
+                    st.write(f"**Collected Amount Percentage:** {collected_pct:.2f}%")
+                    st.progress(min(collected_pct/100, 1.0))
+                    st.write(f"**Need to Collect Percentage:** {remaining_pct:.2f}%")
+                    st.progress(min(max(remaining_pct/100, 0.0), 1.0))
                 
     if st.sidebar.button("Log out"):
         st.session_state.logged_in = False
         st.session_state.role = None
         st.rerun()
 
+# মেইন অ্যাপ ফ্লো
 if not st.session_state.logged_in:
     login_screen()
 else:
