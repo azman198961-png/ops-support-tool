@@ -14,7 +14,7 @@ if "logged_in" not in st.session_state:
 
 # এজেন্ট এবং অ্যাডমিন লগইন ক্রেডেনশিয়াল
 AGENTS = {
-    "agent1@email.com": "pass123",
+    "asikul.islam@pathao.com": "M198961",
     "agent2@email.com": "pass456"
 }
 
