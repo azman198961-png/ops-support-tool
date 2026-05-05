@@ -5,14 +5,14 @@ from datetime import datetime
 # পেজ কনফিগারেশন
 st.set_page_config(page_title="Ops Support Tool", layout="wide")
 
-# সেশন ইনিশিয়ালাইজেশন
+# সেশন ইনিশিয়ালাইজেশন
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.role = None
     st.session_state.user_email = ""
     st.session_state.entries = []  # এখানে সব এন্ট্রি জমা থাকবে
 
-# এজেন্ট এবং অ্যাডমিন লগইন ক্রেডেনশিয়াল
+# এজেন্ট এবং অ্যাডমিন লগইন ক্রেডেনশিয়াল
 AGENTS = {
     "agent1@email.com": "pass123",
     "agent2@email.com": "pass456"
@@ -58,7 +58,6 @@ def agent_dashboard():
         st.subheader("👤 User Module")
         sub_page = st.selectbox("Select Action", ["Suspension", "Unsuspension", "Pay Later Due Adjustment", "Promos"])
         
-        # Form Data
         form_data = {}
         
         if sub_page == "Suspension":
@@ -262,7 +261,10 @@ def agent_dashboard():
         if st.button("Confirm Submission"):
             st.session_state.entries.append(st.session_state["review_entry"])
             del st.session_state["review_entry"]
+            
+            # Submission Animation & Reset
             st.success("Entry successfully submitted to Admin dashboard!")
+            st.balloons()
             st.rerun()
 
     # 3. All Entries Page (Agent View)
@@ -319,6 +321,14 @@ def admin_dashboard():
             if st.button("Save Changes"):
                 st.session_state.entries[selected_idx]["Note"] = note_text
                 st.session_state.entries[selected_idx]["Status"] = new_status
+                
+                # Added colorful animation feedback
+                if new_status == "Done":
+                    st.success("🎉 Entry successfully Approved (Done)!")
+                    st.balloons()
+                elif new_status == "Rejected":
+                    st.error("❌ Entry has been Rejected!")
+                
                 st.success("Changes updated successfully.")
                 st.rerun()
                 
